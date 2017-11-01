@@ -552,12 +552,13 @@ def main():
     global EX_RAID_GYMS
     global SCAN_INTERVAL
     global SMS_FROM_NUMBER
-    fromNumber = '+1' + str(SMS_FROM_NUMBER)
     
     prepLogger()
     logger = logging.getLogger()
     importConfigSettings()
     prepSMS()
+	
+	fromNumber = '+1' + str(SMS_FROM_NUMBER)
     
     Hatches = []
     Eggs = []
