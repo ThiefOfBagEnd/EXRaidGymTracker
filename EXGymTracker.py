@@ -557,8 +557,8 @@ def main():
     logger = logging.getLogger()
     importConfigSettings()
     prepSMS()
-	
-	fromNumber = '+1' + str(SMS_FROM_NUMBER)
+    
+    fromNumber = '+1' + str(SMS_FROM_NUMBER)
     
     Hatches = []
     Eggs = []
