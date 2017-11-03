@@ -23,6 +23,7 @@ TWILIO_SID = ''
 TWILIO_AUTH_TOKEN = ''
 SMS_CLIENT = None
 SMS_FROM_NUMBER = 0
+TESTING_MODE = True
 
 POKEDEX = [
 'Bulbasaur',
@@ -447,11 +448,12 @@ def isGoodConfig(configFileDir):
                     config['TEXT_NUMBERS'] is not None and
                     config['TWILIO_SID'] is not None and
                     config['TWILIO_AUTH_TOKEN'] is not None and
-                    config['SMS_FROM_NUMBER'] is not None):
+                    config['SMS_FROM_NUMBER'] is not None and
+                    config['TESTING_MODE'] is not None):
                 bIsGoodConfig = True
             else:
                 config = None
-        except ex:
+        except Exception as ex:
             logger.exception(ex);
             
     return bIsGoodConfig, config
@@ -465,6 +467,7 @@ def importConfigSettings():
     global TWILIO_SID
     global TWILIO_AUTH_TOKEN
     global SMS_FROM_NUMBER
+    global TESTING_MODE
     
     logger = logging.getLogger()
     bSuccess, config = checkForConfigs()
@@ -479,6 +482,7 @@ def importConfigSettings():
         TWILIO_SID = config['TWILIO_SID']
         TWILIO_AUTH_TOKEN = config['TWILIO_AUTH_TOKEN']
         SMS_FROM_NUMBER = config['SMS_FROM_NUMBER']
+        TESTING_MODE = config['TESTING_MODE']
         
         logger.info('SCAN_INTERVAL: %d sec', SCAN_INTERVAL)
         logger.info('EX_RAID_GYMS: %s', EX_RAID_GYMS)
@@ -488,6 +492,7 @@ def importConfigSettings():
         logger.info('TWILIO_SID: %s', TWILIO_SID)
         logger.info('TWILIO_AUTH_TOKEN: %s', TWILIO_AUTH_TOKEN)
         logger.info('SMS_FROM_NUMBER: %d', SMS_FROM_NUMBER)
+        logger.info('TESTING_MODE:%s', TESTING_MODE)
 
 def prepLogger():
     logger = logging.getLogger()
@@ -506,10 +511,11 @@ def prepSMS():
     global SMS_CLIENT
     global TWILIO_AUTH_TOKEN
     global TWILIO_SID
+    global TESTING_MODE
     
     logger = logging.getLogger()
-    
-    SMS_CLIENT = SMSClient(TWILIO_SID, TWILIO_AUTH_TOKEN)
+    if not TESTING_MODE:
+        SMS_CLIENT = SMSClient(TWILIO_SID, TWILIO_AUTH_TOKEN)
 
 def getEXGymData():
     global EX_RAID_GYMS
@@ -552,6 +558,7 @@ def main():
     global EX_RAID_GYMS
     global SCAN_INTERVAL
     global SMS_FROM_NUMBER
+    global TESTING_MODE
     
     prepLogger()
     logger = logging.getLogger()
@@ -564,9 +571,9 @@ def main():
     Eggs = []
     
     while True:
+        #Get current time
+        now = datetime.datetime.now()
         try:
-            #Get current time
-            now = datetime.datetime.now()
             #Clean up hatches
             for Hatch in Hatches:
                 if now > Hatch['endTime']:
@@ -596,14 +603,16 @@ def main():
                         tier=newEgg['tier'],
                         lat=newEgg['lat'],
                         long=newEgg['long'])
-                    
-                    for number in TEXT_NUMBERS:
-                        toNumber = '+1' + str(number)
-                        SMS_CLIENT.messages.create(
-                            to=toNumber,
-                            from_=fromNumber,
-                            body=body)
-                        logger.info('to:%s, from:%s, body:%s',toNumber, fromNumber, body)
+                    if not TESTING_MODE:
+                        for number in TEXT_NUMBERS:
+                            toNumber = '+1' + str(number)
+                            SMS_CLIENT.messages.create(
+                                to=toNumber,
+                                from_=fromNumber,
+                                body=body)
+                            logger.info('to:%s, from:%s, body:%s',toNumber, fromNumber, body)
+                    else:
+                        logger.info('Outgoing body:%s', body)
                     #Add newEgg to Eggs
                     Eggs.append(newEgg)
                         
@@ -617,13 +626,16 @@ def main():
                         lat=newHatch['lat'],
                         long=newHatch['long'])
                     
-                    for number in TEXT_NUMBERS:
-                        toNumber = '+1' + str(number)
-                        SMS_CLIENT.messages.create(
-                            to=toNumber,
-                            from_=fromNumber,
-                            body=body)
-                        logger.info('to:%s, from:%s, body:%s',toNumber, fromNumber, body)
+                    if not TESTING_MODE:
+                        for number in TEXT_NUMBERS:
+                            toNumber = '+1' + str(number)
+                            SMS_CLIENT.messages.create(
+                                to=toNumber,
+                                from_=fromNumber,
+                                body=body)
+                            logger.info('to:%s, from:%s, body:%s',toNumber, fromNumber, body)
+                    else:
+                        logger.info('Outgoing body:%s', body)
                     #add newHatch to Hatches
                     Hatches.append(newHatch)
                 
@@ -635,7 +647,10 @@ def main():
             break
         except Exception as ex:
             logger.exception(ex)
-            
+        if now.time() >= datetime.time(21, 0) or now.time() < datetime.time(6,0):
+            nightly_timer = (datetime.timedelta(hours=24) - (now - now.replace(hour=6, minute=0, second=0, microsecond=0))).total_seconds() % (86400)
+            logger.info("Sleeping %d secs until 6 AM", nightly_timer)
+            time.sleep(nightly_timer)
         time.sleep(SCAN_INTERVAL)
     sys.exit(0)
 
