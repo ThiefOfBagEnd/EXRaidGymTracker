@@ -515,7 +515,7 @@ def getEXGymData():
     global EX_RAID_GYMS
     
     logger = logging.getLogger()
-    gyms = [gym for gym in getAllGyms() if gym['gymname'] in EX_RAID_GYMS] #TODO Filter BY LAT/LONG
+    gyms = [gym for gym in getAllGyms() if gym['gymname'].strip() in EX_RAID_GYMS] #TODO Filter BY LAT/LONG
     return gyms
 
 def getAllGyms():
