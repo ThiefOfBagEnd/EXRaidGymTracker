@@ -12,6 +12,7 @@ import requests
 CurrentDir = os.getcwd()
 
 LOG_FILE = CurrentDir + '\\EXGymTracker.log'
+CACHE_FILE = CurrentDir + '\\EXGymTracker.json'
 LOG_LEVEL = logging.INFO
 
 SCAN_INTERVAL = 60 #seconds
@@ -438,9 +439,8 @@ def isGoodConfig(configFileDir):
 
     matchesCount = 0
     with open(configFileDir, "r") as f:
-        configContents = f.read()
         try:
-            config = json.loads(configContents)
+            config = json.load(f)
             if (config['SCAN_INTERVAL'] is not None and 
                     config['EX_RAID_GYMS'] is not None and 
                     config['URLS_TO_SCAN'] is not None and 
@@ -454,11 +454,11 @@ def isGoodConfig(configFileDir):
             else:
                 config = None
         except Exception as ex:
-            logger.exception(ex);
+            logger.exception(ex)
             
     return bIsGoodConfig, config
 
-def importConfigSettings():
+def importConfigSettings(logResults):
     global SCAN_INTERVAL
     global EX_RAID_GYMS
     global URLS_TO_SCAN
@@ -484,15 +484,16 @@ def importConfigSettings():
         SMS_FROM_NUMBER = config['SMS_FROM_NUMBER']
         TESTING_MODE = config['TESTING_MODE']
         
-        logger.info('SCAN_INTERVAL: %d sec', SCAN_INTERVAL)
-        logger.info('EX_RAID_GYMS: %s', EX_RAID_GYMS)
-        logger.info('URLS_TO_SCAN: %s', URLS_TO_SCAN)
-        logger.info('EMAILS: %s', EMAILS)
-        logger.info('TEXT_NUMBERS: %s', TEXT_NUMBERS)
-        logger.info('TWILIO_SID: %s', TWILIO_SID)
-        logger.info('TWILIO_AUTH_TOKEN: %s', TWILIO_AUTH_TOKEN)
-        logger.info('SMS_FROM_NUMBER: %d', SMS_FROM_NUMBER)
-        logger.info('TESTING_MODE:%s', TESTING_MODE)
+        if logResults:
+            logger.info('SCAN_INTERVAL: %d sec', SCAN_INTERVAL)
+            logger.info('EX_RAID_GYMS: %s', EX_RAID_GYMS)
+            logger.info('URLS_TO_SCAN: %s', URLS_TO_SCAN)
+            logger.info('EMAILS: %s', EMAILS)
+            logger.info('TEXT_NUMBERS: %s', TEXT_NUMBERS)
+            logger.info('TWILIO_SID: %s', TWILIO_SID)
+            logger.info('TWILIO_AUTH_TOKEN: %s', TWILIO_AUTH_TOKEN)
+            logger.info('SMS_FROM_NUMBER: %d', SMS_FROM_NUMBER)
+            logger.info('TESTING_MODE:%s', TESTING_MODE)
 
 def prepLogger():
     logger = logging.getLogger()
@@ -552,6 +553,39 @@ def getAllGyms():
         i += 1
     return gyms
 
+def saveCache(Hatches, Eggs):
+    global CACHE_FILE
+    
+    logger = logging.getLogger()
+    
+    with open(CACHE_FILE, 'w') as file:
+        try:
+            allData = Hatches + Eggs
+            json.dump(allData, file)
+        except Exception as ex:
+            logger.exception(ex)
+
+def loadCache():
+    global CACHE_FILE
+    
+    logger = logging.getLogger()
+        
+    Hatches = []
+    Eggs = []
+    
+    try:
+        with open(CACHE_FILE, "r") as file:
+            allData = json.load(file)
+            Hatches = [gym for gym in allData if gym['type'] != 'Egg']
+            Hatches = [gym for gym in allData if gym['type'] == 'Egg']
+    except Exception as ex:
+        logger.exception(ex)
+    #Read from file
+    #Separate into Hatches vs Eggs
+    
+    
+    return Hatches, Eggs
+
 def main():
     global SMS_CLIENT
     global TEXT_NUMBERS
@@ -562,7 +596,7 @@ def main():
     
     prepLogger()
     logger = logging.getLogger()
-    importConfigSettings()
+    importConfigSettings(True)
     prepSMS()
     
     fromNumber = '+1' + str(SMS_FROM_NUMBER)
@@ -574,6 +608,8 @@ def main():
         #Get current time
         now = datetime.datetime.now()
         try:
+            Hatches, Eggs = loadCache()
+            
             #Clean up hatches
             for Hatch in Hatches:
                 if now > Hatch['endTime']:
@@ -641,7 +677,9 @@ def main():
                 
             if len(newHatches) == 0 and len(newEggs) == 0:
                 logger.info('No new Ex Raid Gym Eggs/Hatches')
-                
+            else:
+                saveCache(Hatches, Eggs)
+            
         except (KeyboardInterrupt, SystemExit) as ex:
             logger.exception(ex)
             break
@@ -652,6 +690,8 @@ def main():
             logger.info("Sleeping %d secs until 6 AM", nightly_timer)
             time.sleep(nightly_timer)
         time.sleep(SCAN_INTERVAL)
+        #Reload config settings but noneed to reprep Twilio client.
+        importConfigSettings(False)
     sys.exit(0)
 
 if __name__ == '__main__':
