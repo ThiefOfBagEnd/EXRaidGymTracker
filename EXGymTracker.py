@@ -502,7 +502,7 @@ def prepLogger():
     h.setFormatter(f)
     logger.addHandler(h)
     
-    h2 = logging.handlers.RotatingFileHandler(LOG_FILE, maxBytes=1024 * 1024, backupCount=20)
+    h2 = logging.handlers.RotatingFileHandler(LOG_FILE, maxBytes=1048576, backupCount=20)
     h2.setFormatter(f)
     logger.addHandler(h2)
     
@@ -561,6 +561,11 @@ def saveCache(Hatches, Eggs):
     with open(CACHE_FILE, 'w') as file:
         try:
             allData = Hatches + Eggs
+            logger.debug('%d raids saved to cache', len(allData))
+            for gym in allData:
+                gym['spawnTime'] = gym['spawnTime'].strftime('%Y-%m-%d %H:%M:%S')
+                gym['startTime'] = gym['startTime'].strftime('%Y-%m-%d %H:%M:%S')
+                gym['endTime'] = gym['endTime'].strftime('%Y-%m-%d %H:%M:%S')
             json.dump(allData, file)
         except Exception as ex:
             logger.exception(ex)
@@ -576,8 +581,13 @@ def loadCache():
     try:
         with open(CACHE_FILE, "r") as file:
             allData = json.load(file)
+            logger.debug('%d raids loaded from cache', len(allData))
+            for gym in allData:
+                gym['spawnTime'] = datetime.datetime.strptime(gym['spawnTime'], '%Y-%m-%d %H:%M:%S')
+                gym['startTime'] = datetime.datetime.strptime(gym['startTime'], '%Y-%m-%d %H:%M:%S')
+                gym['endTime'] = datetime.datetime.strptime(gym['endTime'], '%Y-%m-%d %H:%M:%S')
             Hatches = [gym for gym in allData if gym['type'] != 'Egg']
-            Hatches = [gym for gym in allData if gym['type'] == 'Egg']
+            Eggs = [gym for gym in allData if gym['type'] == 'Egg']
     except Exception as ex:
         logger.exception(ex)
     #Read from file
@@ -604,29 +614,37 @@ def main():
     Hatches = []
     Eggs = []
     
+    logger.info('Loading Cache...')
+    Hatches, Eggs = loadCache()
+    
     while True:
         #Get current time
         now = datetime.datetime.now()
         try:
-            Hatches, Eggs = loadCache()
             
             #Clean up hatches
+            removedData = False
+            logger.info('Cleaning up Eggs and Hatches...')
             for Hatch in Hatches:
                 if now > Hatch['endTime']:
                     Hatches.remove(Hatch)
+                    removedData = True
             #Clean up eggs
             for Egg in Eggs:
                 if now > Egg['startTime']:
                     Eggs.remove(Egg)
+                    removedData = True
             newHatches = []
             newEggs = []
             #Get gym data
+            logger.info('Getting gym data...')
             gymData = getEXGymData()
+            
+            logger.debug('Hatches:%s', Hatches)
+            logger.debug('Eggs:%s', Eggs)
             #Determine if we have a new raid at a EX raid gym
             #Have we seen it before (key off of hatch time, long, lat)
             newHatches = [gym for gym in gymData if gym['type'] != 'Egg' and gym not in Hatches]
-            logger.debug('Hatches:%s', Hatches)
-            logger.debug('Eggs:%s', Eggs)
             newEggs = [gym for gym in gymData if gym['type'] == 'Egg' and gym not in Eggs]
             logger.debug('New Hatches:%s', newHatches)
             logger.debug('New Eggs:%s', newEggs)
@@ -646,7 +664,7 @@ def main():
                                 to=toNumber,
                                 from_=fromNumber,
                                 body=body)
-                            logger.info('to:%s, from:%s, body:%s',toNumber, fromNumber, body)
+                        logger.info('from:%s, body:%s', fromNumber, body)
                     else:
                         logger.info('Outgoing body:%s', body)
                     #Add newEgg to Eggs
@@ -669,17 +687,24 @@ def main():
                                 to=toNumber,
                                 from_=fromNumber,
                                 body=body)
-                            logger.info('to:%s, from:%s, body:%s',toNumber, fromNumber, body)
+                        logger.info('from:%s, body:%s', fromNumber, body)
                     else:
                         logger.info('Outgoing body:%s', body)
                     #add newHatch to Hatches
                     Hatches.append(newHatch)
-                
+            
+            newData = False
             if len(newHatches) == 0 and len(newEggs) == 0:
                 logger.info('No new Ex Raid Gym Eggs/Hatches')
             else:
+                newData = True
+                
+            updatedData = newData or removedData
+            if updatedData:
+                #updated Hatches/Eggs->write data to cache
+                logger.info('Saving to cache...')
                 saveCache(Hatches, Eggs)
-            
+        
         except (KeyboardInterrupt, SystemExit) as ex:
             logger.exception(ex)
             break
@@ -690,8 +715,9 @@ def main():
             logger.info("Sleeping %d secs until 6 AM", nightly_timer)
             time.sleep(nightly_timer)
         time.sleep(SCAN_INTERVAL)
-        #Reload config settings but noneed to reprep Twilio client.
+        #Reload config settings but no need to reprep Twilio client or reload the cache.
         importConfigSettings(False)
+    
     sys.exit(0)
 
 if __name__ == '__main__':
