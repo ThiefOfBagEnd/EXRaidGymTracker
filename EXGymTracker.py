@@ -8,6 +8,7 @@ import datetime
 import time
 from twilio.rest import Client as SMSClient
 import requests
+import copy
 
 CurrentDir = os.getcwd()
 
@@ -16,7 +17,7 @@ CACHE_FILE = CurrentDir + '\\EXGymTracker.json'
 LOG_LEVEL = logging.INFO
 
 SCAN_INTERVAL = 60 #seconds
-EX_RAID_GYMS = ['Memorial Student Center', 'FREE TEAM PHONE SKIN', 'Heritage Park', 'College Station Police Department', 'Albritton Bell Tower']
+EX_RAID_GYMS = ['Memorial Student Center', 'FREE TEAM PHONE SKIN', 'War for Texas Independence']
 URLS_TO_SCAN = ['https://pokemasterbcs.com/core/process/aru.php?type=raids&page=%d']
 EMAILS = []
 TEXT_NUMBERS = []
@@ -560,7 +561,7 @@ def saveCache(Hatches, Eggs):
     
     with open(CACHE_FILE, 'w') as file:
         try:
-            allData = Hatches + Eggs
+            allData = copy.deepcopy(Hatches) + copy.deepcopy(Eggs)
             logger.debug('%d raids saved to cache', len(allData))
             for gym in allData:
                 gym['spawnTime'] = gym['spawnTime'].strftime('%Y-%m-%d %H:%M:%S')
