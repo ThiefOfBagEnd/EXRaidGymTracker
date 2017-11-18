@@ -30,6 +30,7 @@ NIGHT_TIME_END = 0
 NIGHT_TIME_START = 0
 POKEDEX_FILE = CurrentDir + '\\Pokedex.json'
 RAID_URL = ''
+RAID_URL_REFERER = ''
 SCAN_INTERVAL = 60 #seconds
 SMS_FROM_NUMBER = 0
 TESTING_MODE = True
@@ -78,6 +79,7 @@ def isGoodConfig(configFileDir):
                     config['NIGHT_TIME_START'] is not None and 
                     config['POKEDEX_FILE'] is not None and
                     config['RAID_URL'] is not None and 
+                    config['RAID_URL_REFERER'] is not None and
                     config['SCAN_INTERVAL'] is not None and
                     config['SMS_FROM_NUMBER'] is not None and
                     config['TESTING_MODE'] is not None and
@@ -100,6 +102,7 @@ def importConfigSettings(logResults):
     global NIGHT_TIME_START
     global POKEDEX_FILE
     global RAID_URL
+    global RAID_URL_REFERER
     global SCAN_INTERVAL
     global SMS_FROM_NUMBER
     global TESTING_MODE
@@ -119,6 +122,7 @@ def importConfigSettings(logResults):
         NIGHT_TIME_START = int(config['NIGHT_TIME_START'])
         POKEDEX_FILE = CurrentDir + config['POKEDEX_FILE']
         RAID_URL = config['RAID_URL']
+        RAID_URL_REFERER = config['RAID_URL_REFERER']
         SCAN_INTERVAL = int(config['SCAN_INTERVAL'])
         SMS_FROM_NUMBER = int(config['SMS_FROM_NUMBER'])
         TESTING_MODE = config['TESTING_MODE']
@@ -134,6 +138,7 @@ def importConfigSettings(logResults):
             logger.info('NIGHT_TIME_START: %d o\'clock', NIGHT_TIME_START)
             logger.info('POKEDEX_FILE: %s', POKEDEX_FILE)
             logger.info('RAID_URL: %s', RAID_URL)
+            logger.info('RAID_URL_REFERER: %s', RAID_URL_REFERER)
             logger.info('SCAN_INTERVAL: %d sec', SCAN_INTERVAL)
             logger.info('SMS_FROM_NUMBER: %d', SMS_FROM_NUMBER)
             logger.info('TESTING_MODE: %s', TESTING_MODE)
@@ -170,10 +175,31 @@ def importUsers():
             #Fill the gyms array
             for user in USERS:
                 if user['Gyms']:
-                    for gym in user['Gyms']:
-                        if gym['Name']:
-                            #TODO if we match gym id or lat long we will need to include those here instead.
-                            GYMS.append(gym['Name'])
+                    if user['Active Perks']:
+                        for userGym in user['Gyms']:
+                            foundGym = False
+                            for gym in GYMS:
+                                if gym['Name'] == userGym['Name']:  #TODO Match on Gym id
+                                    foundGym = True
+                                    if userGym['EggNotification']:
+                                        gym['Egg Numbers'].append(user['Phone Number'])
+                                    if userGym['HatchNotification']:
+                                        gym['Hatch Numbers'].append(user['Phone Number'])
+                                #TODO if we match gym id or lat long we will need to include those here instead.
+                            if not foundGym:
+                                newGym = {
+                                    'Egg Numbers': [],
+                                    'Hatch Numbers': [],
+                                    'ID': userGym['ID'],
+                                    'Latitude': userGym['Latitude'],
+                                    'Longitude': userGym['Longitude'],
+                                    'Name': userGym['Name']
+                                }
+                                if userGym['EggNotification']:
+                                    newGym['Egg Numbers'].append(user['Phone Number'])
+                                if userGym['HatchNotification']:
+                                    newGym['Hatch Numbers'].append(user['Phone Number'])
+                                GYMS.append(newGym)
         except Exception as ex:
             logger.exception(ex)
 
@@ -245,11 +271,12 @@ def getEXGymData():
     global GYMS
     
     logger = logging.getLogger()
-    gyms = [gym for gym in getAllGyms() if gym['gymname'].strip() in GYMS] #TODO Filter BY LAT/LONG
+    gyms = [gym for gym in getAllGyms() if gym['gymname'].strip() in [masterGym['Name'] for masterGym in GYMS]] #TODO Filter BY LAT/LONG
     return gyms
 
 def getAllGyms():
     global RAID_URL
+    global RAID_URL_REFERER
     global POKEDEX
     
     logger = logging.getLogger()
@@ -258,7 +285,7 @@ def getAllGyms():
     i = 0
     while response is not None and response['raids'] is not None and len(response['raids']) >= 10:
         url = RAID_URL[0] % i
-        response = json.loads(requests.get(url, headers={'Referer':'http://pokemasterbcs.com/'}).text)
+        response = json.loads(requests.get(url, headers={'Referer': RAID_URL_REFERER}).text)
         if len(response['raids']) > 0:
             for id, raid in response['raids'].items():
                 gyms.append({
@@ -312,9 +339,7 @@ def loadCache():
             Hatches = [gym for gym in allData if gym['type'] != 'Egg']
             Eggs = [gym for gym in allData if gym['type'] == 'Egg']
     except Exception as ex:
-        logger.exception(ex)
-    #Read from file
-    #Separate into Hatches vs Eggs
+        logger.exception(ex)\
     
     
     return Hatches, Eggs
@@ -378,7 +403,6 @@ def main():
             logger.debug('New Hatches:%s', newHatches)
             logger.debug('New Eggs:%s', newEggs)
             for newEgg in newEggs:
-                #TODO: Determine what numbers we need to send for this newEgg
                 if now < newEgg['startTime']:
                     body= EGG_BODY.format(
                         name=newEgg['gymname'],
@@ -388,20 +412,21 @@ def main():
                         lat=newEgg['lat'],
                         long=newEgg['long'])
                     if not TESTING_MODE:
-                        for number in TEXT_NUMBERS:
-                            toNumber = '+1' + str(number)
-                            SMS_CLIENT.messages.create(
-                                to=toNumber,
-                                from_=fromNumber,
-                                body=body)
-                        logger.info('from:%s, body:%s', fromNumber, body)
+                        for gym in GYMS:
+                            if gym['Name'] == newEgg['gymname']:
+                                for number in gym['Egg Numbers']:
+                                    toNumber = '+1' + str(number)
+                                    SMS_CLIENT.messages.create(
+                                        to=toNumber,
+                                        from_=fromNumber,
+                                        body=body)
+                                logger.info('from:%s, body:%s', fromNumber, body)
                     else:
                         logger.info('Outgoing body:%s', body)
                     #Add newEgg to Eggs
                     Eggs.append(newEgg)
                         
             for newHatch in newHatches:
-                #TODO: Determine what numbers we need to send for this newHatch
                 if now < newHatch['endTime']:
                     body= HATCH_BODY.format(
                         name=newHatch['gymname'],
@@ -412,13 +437,15 @@ def main():
                         long=newHatch['long'])
                     
                     if not TESTING_MODE:
-                        for number in TEXT_NUMBERS:
-                            toNumber = '+1' + str(number)
-                            SMS_CLIENT.messages.create(
-                                to=toNumber,
-                                from_=fromNumber,
-                                body=body)
-                        logger.info('from:%s, body:%s', fromNumber, body)
+                        for gym in GYMS:
+                            if gym['Name'] == newHatch['gymname']:
+                                for number in gym['Hatch Numbers']:
+                                    toNumber = '+1' + str(number)
+                                    SMS_CLIENT.messages.create(
+                                        to=toNumber,
+                                        from_=fromNumber,
+                                        body=body)
+                                logger.info('from:%s, body:%s', fromNumber, body)
                     else:
                         logger.info('Outgoing body:%s', body)
                     #add newHatch to Hatches
