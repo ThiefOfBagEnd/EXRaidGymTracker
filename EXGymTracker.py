@@ -190,7 +190,6 @@ def importUsers():
                                 newGym = {
                                     'Egg Numbers': [],
                                     'Hatch Numbers': [],
-                                    'ID': userGym['ID'],
                                     'Latitude': userGym['Latitude'],
                                     'Longitude': userGym['Longitude'],
                                     'Name': userGym['Name']
@@ -284,7 +283,7 @@ def getAllGyms():
     response = {'raids':[0,1,2,3,4,5,6,7,8,9]}
     i = 0
     while response is not None and response['raids'] is not None and len(response['raids']) >= 10:
-        url = RAID_URL[0] % i
+        url = RAID_URL % i
         response = json.loads(requests.get(url, headers={'Referer': RAID_URL_REFERER}).text)
         if len(response['raids']) > 0:
             for id, raid in response['raids'].items():
@@ -358,8 +357,11 @@ def main():
     
     prepLogger()
     logger = logging.getLogger()
+    logger.info('Loading Config Values...')
     importConfigSettings(True)
+    logger.info('Loading Pokedex...')
     importPokedex()
+    logger.info('Loading Users...')
     importUsers()
     prepSMS()
     
@@ -411,18 +413,19 @@ def main():
                         tier=newEgg['tier'],
                         lat=newEgg['lat'],
                         long=newEgg['long'])
-                    if not TESTING_MODE:
-                        for gym in GYMS:
-                            if gym['Name'] == newEgg['gymname']:
-                                for number in gym['Egg Numbers']:
-                                    toNumber = '+1' + str(number)
+                    
+                    for gym in GYMS:
+                        if gym['Name'] == newEgg['gymname']:
+                            for number in gym['Egg Numbers']:
+                                toNumber = '+1' + str(number)
+                                if not TESTING_MODE:
                                     SMS_CLIENT.messages.create(
                                         to=toNumber,
                                         from_=fromNumber,
                                         body=body)
-                                logger.info('from:%s, body:%s', fromNumber, body)
-                    else:
-                        logger.info('Outgoing body:%s', body)
+                                else:
+                                    logger.info('from:%s, to: %s, body:%s', fromNumber, toNumber, body)
+                            logger.info('from:%s, body:%s', fromNumber, body)
                     #Add newEgg to Eggs
                     Eggs.append(newEgg)
                         
@@ -436,18 +439,18 @@ def main():
                         lat=newHatch['lat'],
                         long=newHatch['long'])
                     
-                    if not TESTING_MODE:
-                        for gym in GYMS:
-                            if gym['Name'] == newHatch['gymname']:
-                                for number in gym['Hatch Numbers']:
-                                    toNumber = '+1' + str(number)
+                    for gym in GYMS:
+                        if gym['Name'] == newHatch['gymname']:
+                            for number in gym['Hatch Numbers']:
+                                toNumber = '+1' + str(number)
+                                if not TESTING_MODE:
                                     SMS_CLIENT.messages.create(
                                         to=toNumber,
                                         from_=fromNumber,
                                         body=body)
-                                logger.info('from:%s, body:%s', fromNumber, body)
-                    else:
-                        logger.info('Outgoing body:%s', body)
+                                else:
+                                    logger.info('from:%s, to: %s, body:%s', fromNumber, toNumber, body)
+                            logger.info('from:%s, body:%s', fromNumber, body)
                     #add newHatch to Hatches
                     Hatches.append(newHatch)
             
@@ -474,8 +477,11 @@ def main():
             time.sleep(nightly_timer)
         time.sleep(SCAN_INTERVAL)
         #Reload config settings but no need to reprep Twilio client or reload the cache.
+        logger.info('Reloading Config Values...')
         importConfigSettings(False)
+        logger.info('Reloading Pokedex...')
         importPokedex()
+        logger.info('Reloading Users...')
         importUsers()
     
     sys.exit(0)
