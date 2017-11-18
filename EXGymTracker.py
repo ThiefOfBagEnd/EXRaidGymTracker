@@ -12,409 +12,39 @@ import copy
 
 CurrentDir = os.getcwd()
 
+#The only thing not configurable
+LOG_CONFIG_FILE = CurrentDir + '\\log.conf'
+
+#Logging configuration variables
 LOG_FILE = CurrentDir + '\\EXGymTracker.log'
-CACHE_FILE = CurrentDir + '\\EXGymTracker.json'
+LOG_FILE_COUNT = 20
+LOG_FORMAT = '%(asctime)s %(name)s %(levelname)-8s line %(lineno)d %(message)s'
+LOG_FILE_SIZE = 1048576
 LOG_LEVEL = logging.INFO
 
+#Config values
+CACHE_FILE = CurrentDir + '\\EXGymTracker.json'
+EGG_BODY = 'GYM RAID ALERT {name} {startTime}-{endTime} Tier {tier} google.com/maps/search/?api=1&query={lat},{long}'
+HATCH_BODY = 'GYM RAID ALERT {name} {startTime}-{endTime} {pokemon} google.com/maps/search/?api=1&query={lat},{long}'
+NIGHT_TIME_END = 0
+NIGHT_TIME_START = 0
+POKEDEX_FILE = CurrentDir + '\\Pokedex.json'
+RAID_URL = ''
 SCAN_INTERVAL = 60 #seconds
-EX_RAID_GYMS = ['Memorial Student Center', 'FREE TEAM PHONE SKIN', 'War for Texas Independence']
-URLS_TO_SCAN = ['https://pokemasterbcs.com/core/process/aru.php?type=raids&page=%d']
-EMAILS = []
-TEXT_NUMBERS = []
-TWILIO_SID = ''
-TWILIO_AUTH_TOKEN = ''
-SMS_CLIENT = None
 SMS_FROM_NUMBER = 0
 TESTING_MODE = True
+TWILIO_SID = ''
+TWILIO_AUTH_TOKEN = ''
+USER_FILE = CurrentDir + '\\Users.json'
 
-POKEDEX = [
-'Bulbasaur',
-'Ivysaur',
-'Venusaur',
-'Charmander',
-'Charmeleon',
-'Charizard',
-'Squirtle',
-'Wartortle',
-'Blastoise',
-'Caterpie',
-'Metapod',
-'Butterfree',
-'Weedle',
-'Kakuna',
-'Beedrill',
-'Pidgey',
-'Pidgeotto',
-'Pidgeot',
-'Rattata',
-'Raticate',
-'Spearow',
-'Fearow',
-'Ekans',
-'Arbok',
-'Pikachu',
-'Raichu',
-'Sandshrew',
-'Sandslash',
-'Nidoran♀',
-'Nidorina',
-'Nidoqueen',
-'Nidoran♂',
-'Nidorino',
-'Nidoking',
-'Clefairy',
-'Clefable',
-'Vulpix',
-'Ninetales',
-'Jigglypuff',
-'Wigglytuff',
-'Zubat',
-'Golbat',
-'Oddish',
-'Gloom',
-'Vileplume',
-'Paras',
-'Parasect',
-'Venonat',
-'Venomoth',
-'Diglett',
-'Dugtrio',
-'Meowth',
-'Persian',
-'Psyduck',
-'Golduck',
-'Mankey',
-'Primeape',
-'Growlithe',
-'Arcanine',
-'Poliwag',
-'Poliwhirl',
-'Poliwrath',
-'Abra',
-'Kadabra',
-'Alakazam',
-'Machop',
-'Machoke',
-'Machamp',
-'Bellsprout',
-'Weepinbell',
-'Victreebel',
-'Tentacool',
-'Tentacruel',
-'Geodude',
-'Graveler',
-'Golem',
-'Ponyta',
-'Rapidash',
-'Slowpoke',
-'Slowbro',
-'Magnemite',
-'Magneton',
-'Farfetch’d',
-'Doduo',
-'Dodrio',
-'Seel',
-'Dewgong',
-'Grimer',
-'Muk',
-'Shellder',
-'Cloyster',
-'Gastly',
-'Haunter',
-'Gengar',
-'Onix',
-'Drowzee',
-'Hypno',
-'Krabby',
-'Kingler',
-'Voltorb',
-'Electrode',
-'Exeggcute',
-'Exeggutor',
-'Cubone',
-'Marowak',
-'Hitmonlee',
-'Hitmonchan',
-'Lickitung',
-'Koffing',
-'Weezing',
-'Rhyhorn',
-'Rhydon',
-'Chansey',
-'Tangela',
-'Kangaskhan',
-'Horsea',
-'Seadra',
-'Goldeen',
-'Seaking',
-'Staryu',
-'Starmie',
-'Mr. Mime',
-'Scyther',
-'Jynx',
-'Electabuzz',
-'Magmar',
-'Pinsir',
-'Tauros',
-'Magikarp',
-'Gyarados',
-'Lapras',
-'Ditto',
-'Eevee',
-'Vaporeon',
-'Jolteon',
-'Flareon',
-'Porygon',
-'Omanyte',
-'Omastar',
-'Kabuto',
-'Kabutops',
-'Aerodactyl',
-'Snorlax',
-'Articuno',
-'Zapdos',
-'Moltres',
-'Dratini',
-'Dragonair',
-'Dragonite',
-'Mewtwo',
-'Mew',
-'Chikorita',
-'Bayleef',
-'Meganium',
-'Cyndaquil',
-'Quilava',
-'Typhlosion',
-'Totodile',
-'Croconaw',
-'Feraligatr',
-'Sentret',
-'Furret',
-'Hoothoot',
-'Noctowl',
-'Ledyba',
-'Ledian',
-'Spinarak',
-'Ariados',
-'Crobat',
-'Chinchou',
-'Lanturn',
-'Pichu',
-'Cleffa',
-'Igglybuff',
-'Togepi',
-'Togetic',
-'Natu',
-'Xatu',
-'Mareep',
-'Flaaffy',
-'Ampharos',
-'Bellossom',
-'Marill',
-'Azumarill',
-'Sudowoodo',
-'Politoed',
-'Hoppip',
-'Skiploom',
-'Jumpluff',
-'Aipom',
-'Sunkern',
-'Sunflora',
-'Yanma',
-'Wooper',
-'Quagsire',
-'Espeon',
-'Umbreon',
-'Murkrow',
-'Slowking',
-'Misdreavus',
-'Unown',
-'Wobbuffet',
-'Girafarig',
-'Pineco',
-'Forretress',
-'Dunsparce',
-'Gligar',
-'Steelix',
-'Snubbull',
-'Granbull',
-'Qwilfish',
-'Scizor',
-'Shuckle',
-'Heracross',
-'Sneasel',
-'Teddiursa',
-'Ursaring',
-'Slugma',
-'Magcargo',
-'Swinub',
-'Piloswine',
-'Corsola',
-'Remoraid',
-'Octillery',
-'Delibird',
-'Mantine',
-'Skarmory',
-'Houndour',
-'Houndoom',
-'Kingdra',
-'Phanpy',
-'Donphan',
-'Porygon2',
-'Stantler',
-'Smeargle',
-'Tyrogue',
-'Hitmontop',
-'Smoochum',
-'Elekid',
-'Magby',
-'Miltank',
-'Blissey',
-'Raikou',
-'Entei',
-'Suicune',
-'Larvitar',
-'Pupitar',
-'Tyranitar',
-'Lugia',
-'Ho-Oh',
-'Celebi',
-'Treecko',
-'Grovyle',
-'Sceptile',
-'Torchic',
-'Combusken',
-'Blaziken',
-'Mudkip',
-'Marshtomp',
-'Swampert',
-'Poochyena',
-'Mightyena',
-'Zigzagoon',
-'Linoone',
-'Wurmple',
-'Silcoon',
-'Beautifly',
-'Cascoon',
-'Dustox',
-'Lotad',
-'Lombre',
-'Ludicolo',
-'Seedot',
-'Nuzleaf',
-'Shiftry',
-'Taillow',
-'Swellow',
-'Wingull',
-'Pelipper',
-'Ralts',
-'Kirlia',
-'Gardevoir',
-'Surskit',
-'Masquerain',
-'Shroomish',
-'Breloom',
-'Slakoth',
-'Vigoroth',
-'Slaking',
-'Nincada',
-'Ninjask',
-'Shedinja',
-'Whismur',
-'Loudred',
-'Exploud',
-'Makuhita',
-'Hariyama',
-'Azurill',
-'Nosepass',
-'Skitty',
-'Delcatty',
-'Sableye',
-'Mawile',
-'Aron',
-'Lairon',
-'Aggron',
-'Meditite',
-'Medicham',
-'Electrike',
-'Manectric',
-'Plusle',
-'Minun',
-'Volbeat',
-'Illumise',
-'Roselia',
-'Gulpin',
-'Swalot',
-'Carvanha',
-'Sharpedo',
-'Wailmer',
-'Wailord',
-'Numel',
-'Camerupt',
-'Torkoal',
-'Spoink',
-'Grumpig',
-'Spinda',
-'Trapinch',
-'Vibrava',
-'Flygon',
-'Cacnea',
-'Cacturne',
-'Swablu',
-'Altaria',
-'Zangoose',
-'Seviper',
-'Lunatone',
-'Solrock',
-'Barboach',
-'Whiscash',
-'Corphish',
-'Crawdaunt',
-'Baltoy',
-'Claydol',
-'Lileep',
-'Cradily',
-'Anorith',
-'Armaldo',
-'Feebas',
-'Milotic',
-'Castform',
-'Kecleon',
-'Shuppet',
-'Banette',
-'Duskull',
-'Dusclops',
-'Tropius',
-'Chimecho',
-'Absol',
-'Wynaut',
-'Snorunt',
-'Glalie',
-'Spheal',
-'Sealeo',
-'Walrein',
-'Clamperl',
-'Huntail',
-'Gorebyss',
-'Relicanth',
-'Luvdisc',
-'Bagon',
-'Shelgon',
-'Salamence',
-'Beldum',
-'Metang',
-'Metagross',
-'Regirock',
-'Regice',
-'Registeel',
-'Latias',
-'Latios',
-'Kyogre',
-'Groudon',
-'Rayquaza',
-'Jirachi',
-'Deoxys'
-]
+#Global variables filled and used later
+GYMS = []
+POKEDEX = []
+SMS_CLIENT = None
+USERS = []
+
+#TODO Use Lat/Long or gym id to track GYMS.
+
 
 #Config File Support
 def checkForConfigs():
@@ -438,19 +68,22 @@ def isGoodConfig(configFileDir):
     bIsGoodConfig = False
     config = None
 
-    matchesCount = 0
     with open(configFileDir, "r") as f:
         try:
             config = json.load(f)
-            if (config['SCAN_INTERVAL'] is not None and 
-                    config['EX_RAID_GYMS'] is not None and 
-                    config['URLS_TO_SCAN'] is not None and 
-                    config['EMAILS'] is not None and 
-                    config['TEXT_NUMBERS'] is not None and
+            if (config['CACHE_FILE'] is not None and
+                    config['EGG_BODY'] is not None and
+                    config['HATCH_BODY'] is not None and
+                    config['NIGHT_TIME_END'] is not None and
+                    config['NIGHT_TIME_START'] is not None and 
+                    config['POKEDEX_FILE'] is not None and
+                    config['RAID_URL'] is not None and 
+                    config['SCAN_INTERVAL'] is not None and
+                    config['SMS_FROM_NUMBER'] is not None and
+                    config['TESTING_MODE'] is not None and
                     config['TWILIO_SID'] is not None and
                     config['TWILIO_AUTH_TOKEN'] is not None and
-                    config['SMS_FROM_NUMBER'] is not None and
-                    config['TESTING_MODE'] is not None):
+                    config['USER_FILE'] is not None):
                 bIsGoodConfig = True
             else:
                 config = None
@@ -460,50 +93,139 @@ def isGoodConfig(configFileDir):
     return bIsGoodConfig, config
 
 def importConfigSettings(logResults):
+    global CACHE_FILE
+    global EGG_BODY
+    global HATCH_BODY
+    global NIGHT_TIME_END
+    global NIGHT_TIME_START
+    global POKEDEX_FILE
+    global RAID_URL
     global SCAN_INTERVAL
-    global EX_RAID_GYMS
-    global URLS_TO_SCAN
-    global EMAILS
-    global TEXT_NUMBERS
-    global TWILIO_SID
-    global TWILIO_AUTH_TOKEN
     global SMS_FROM_NUMBER
     global TESTING_MODE
+    global TWILIO_SID
+    global TWILIO_AUTH_TOKEN
+    global USER_FILE
     
     logger = logging.getLogger()
     bSuccess, config = checkForConfigs()
-
+    
     if bSuccess: #success
         logger.info('read in a config file...')
+        CACHE_FILE = CurrentDir + config['CACHE_FILE']
+        EGG_BODY = config['EGG_BODY']
+        HATCH_BODY = config['HATCH_BODY']
+        NIGHT_TIME_END = int(config['NIGHT_TIME_END'])
+        NIGHT_TIME_START = int(config['NIGHT_TIME_START'])
+        POKEDEX_FILE = CurrentDir + config['POKEDEX_FILE']
+        RAID_URL = config['RAID_URL']
         SCAN_INTERVAL = int(config['SCAN_INTERVAL'])
-        EX_RAID_GYMS = config['EX_RAID_GYMS']
-        URLS_TO_SCAN = config['URLS_TO_SCAN']
-        EMAILS = config['EMAILS']
-        TEXT_NUMBERS = config['TEXT_NUMBERS']
+        SMS_FROM_NUMBER = int(config['SMS_FROM_NUMBER'])
+        TESTING_MODE = config['TESTING_MODE']
         TWILIO_SID = config['TWILIO_SID']
         TWILIO_AUTH_TOKEN = config['TWILIO_AUTH_TOKEN']
-        SMS_FROM_NUMBER = config['SMS_FROM_NUMBER']
-        TESTING_MODE = config['TESTING_MODE']
+        USER_FILE = CurrentDir + config['USER_FILE']
         
         if logResults:
+            logger.info('CACHE_FILE: %s', CACHE_FILE)
+            logger.info('EGG_BODY: %s', EGG_BODY)
+            logger.info('HATCH_BODY: %s', HATCH_BODY)
+            logger.info('NIGHT_TIME_END: %d o\'clock', NIGHT_TIME_END)
+            logger.info('NIGHT_TIME_START: %d o\'clock', NIGHT_TIME_START)
+            logger.info('POKEDEX_FILE: %s', POKEDEX_FILE)
+            logger.info('RAID_URL: %s', RAID_URL)
             logger.info('SCAN_INTERVAL: %d sec', SCAN_INTERVAL)
-            logger.info('EX_RAID_GYMS: %s', EX_RAID_GYMS)
-            logger.info('URLS_TO_SCAN: %s', URLS_TO_SCAN)
-            logger.info('EMAILS: %s', EMAILS)
-            logger.info('TEXT_NUMBERS: %s', TEXT_NUMBERS)
+            logger.info('SMS_FROM_NUMBER: %d', SMS_FROM_NUMBER)
+            logger.info('TESTING_MODE: %s', TESTING_MODE)
             logger.info('TWILIO_SID: %s', TWILIO_SID)
             logger.info('TWILIO_AUTH_TOKEN: %s', TWILIO_AUTH_TOKEN)
-            logger.info('SMS_FROM_NUMBER: %d', SMS_FROM_NUMBER)
-            logger.info('TESTING_MODE:%s', TESTING_MODE)
+            logger.info('USER_FILE: %s', USER_FILE)
+
+def importPokedex():
+    global POKEDEX
+    global POKEDEX_FILE
+    
+    POKEDEX = []
+    
+    logger = logging.getLogger()
+    with open(POKEDEX_FILE, "r") as f:
+        try:
+            POKEDEX = json.load(f)
+        except Exception as ex:
+            logger.exception(ex)
+
+def importUsers():
+    global USERS
+    global USER_FILE
+    global GYMS
+    
+    USERS = []
+    GYMS = []
+    
+    logger = logging.getLogger()
+    with open(USER_FILE, "r") as f:
+        try:
+            #Load the users file
+            USERS = json.load(f)
+            #Fill the gyms array
+            for user in USERS:
+                if user['Gyms']:
+                    for gym in user['Gyms']:
+                        if gym['Name']:
+                            #TODO if we match gym id or lat long we will need to include those here instead.
+                            GYMS.append(gym['Name'])
+        except Exception as ex:
+            logger.exception(ex)
+
+def getLogConfig():
+    global LOG_FILE
+    global LOG_FILE_COUNT
+    global LOG_FILE_SIZE
+    global LOG_FORMAT
+    global LOG_LEVEL
+    global LOG_CONFIG_FILE
+    
+    config = None
+
+    with open(LOG_CONFIG_FILE, "r") as f:
+        try:
+            config = json.load(f)
+            if config is not None:
+                LOG_FILE = (CurrentDir + config['LOG_FILE']) if config['LOG_FILE'] is not None else LOG_FILE
+                LOG_FILE_COUNT = int(config['LOG_FILE_COUNT']) if config['LOG_FILE_COUNT'] is not None else LOG_FILE_COUNT
+                LOG_FILE_SIZE = int(config['LOG_FILE_SIZE']) if config['LOG_FILE_SIZE'] is not None else LOG_FILE_SIZE
+                LOG_FORMAT = config['LOG_FORMAT'] if config['LOG_FORMAT'] is not None else LOG_FORMAT
+                if config['LOG_LEVEL']:
+                    if config['LOG_LEVEL'] == 'CRITICAL':
+                        LOG_LEVEL = logging.CRITICAL
+                    elif config['LOG_LEVEL'] == 'ERROR':
+                        LOG_LEVEL = logging.ERROR
+                    elif config['LOG_LEVEL'] == 'WARNING':
+                        LOG_LEVEL = logging.WARNING
+                    elif config['LOG_LEVEL'] == 'INFO':
+                        LOG_LEVEL = logging.INFO
+                    elif config['LOG_LEVEL'] == 'DEBUG':
+                        LOG_LEVEL = logging.DEBUG
+                    elif config['LOG_LEVEL'] == 'NOTSET':
+                        LOG_LEVEL = logging.NOTSET
+        except Exception as ex:
+            logger.exception(ex)
 
 def prepLogger():
+    global LOG_FILE_SIZE
+    global LOG_FILE_COUNT
+    global LOG_LEVEL
+    global LOG_FORMAT
+    
+    getLogConfig()
+    
     logger = logging.getLogger()
-    f = logging.Formatter('%(asctime)s %(name)s %(levelname)-8s line %(lineno)d %(message)s')
+    f = logging.Formatter(LOG_FORMAT)
     h = logging.StreamHandler(sys.stdout)
     h.setFormatter(f)
     logger.addHandler(h)
     
-    h2 = logging.handlers.RotatingFileHandler(LOG_FILE, maxBytes=1048576, backupCount=20)
+    h2 = logging.handlers.RotatingFileHandler(LOG_FILE, maxBytes=LOG_FILE_SIZE, backupCount=LOG_FILE_COUNT)
     h2.setFormatter(f)
     logger.addHandler(h2)
     
@@ -520,22 +242,22 @@ def prepSMS():
         SMS_CLIENT = SMSClient(TWILIO_SID, TWILIO_AUTH_TOKEN)
 
 def getEXGymData():
-    global EX_RAID_GYMS
+    global GYMS
     
     logger = logging.getLogger()
-    gyms = [gym for gym in getAllGyms() if gym['gymname'].strip() in EX_RAID_GYMS] #TODO Filter BY LAT/LONG
+    gyms = [gym for gym in getAllGyms() if gym['gymname'].strip() in GYMS] #TODO Filter BY LAT/LONG
     return gyms
 
 def getAllGyms():
-    global URLS_TO_SCAN
+    global RAID_URL
     global POKEDEX
     
     logger = logging.getLogger()
     gyms = []
-    response = {'raids':[True]}
+    response = {'raids':[0,1,2,3,4,5,6,7,8,9]}
     i = 0
-    while response is not None and response['raids'] is not None and len(response['raids']) > 0:
-        url = URLS_TO_SCAN[0] % i
+    while response is not None and response['raids'] is not None and len(response['raids']) >= 10:
+        url = RAID_URL[0] % i
         response = json.loads(requests.get(url, headers={'Referer':'http://pokemasterbcs.com/'}).text)
         if len(response['raids']) > 0:
             for id, raid in response['raids'].items():
@@ -599,8 +321,12 @@ def loadCache():
 
 def main():
     global SMS_CLIENT
-    global TEXT_NUMBERS
-    global EX_RAID_GYMS
+    global USERS
+    
+    global EGG_BODY
+    global HATCH_BODY
+    global NIGHT_TIME_END
+    global NIGHT_TIME_START
     global SCAN_INTERVAL
     global SMS_FROM_NUMBER
     global TESTING_MODE
@@ -608,6 +334,8 @@ def main():
     prepLogger()
     logger = logging.getLogger()
     importConfigSettings(True)
+    importPokedex()
+    importUsers()
     prepSMS()
     
     fromNumber = '+1' + str(SMS_FROM_NUMBER)
@@ -650,8 +378,9 @@ def main():
             logger.debug('New Hatches:%s', newHatches)
             logger.debug('New Eggs:%s', newEggs)
             for newEgg in newEggs:
+                #TODO: Determine what numbers we need to send for this newEgg
                 if now < newEgg['startTime']:
-                    body='EX RAID GYM ALERT {name} {startTime}-{endTime} Tier {tier} google.com/maps/search/?api=1&query={lat},{long}'.format(
+                    body= EGG_BODY.format(
                         name=newEgg['gymname'],
                         startTime=newEgg['startTime'].strftime('%H:%M'),
                         endTime=newEgg['endTime'].strftime('%H:%M'),
@@ -672,8 +401,9 @@ def main():
                     Eggs.append(newEgg)
                         
             for newHatch in newHatches:
+                #TODO: Determine what numbers we need to send for this newHatch
                 if now < newHatch['endTime']:
-                    body='EX RAID GYM ALERT {name} {startTime}-{endTime} {pokemon} google.com/maps/search/?api=1&query={lat},{long}'.format(
+                    body= HATCH_BODY.format(
                         name=newHatch['gymname'],
                         startTime=newHatch['startTime'].strftime('%H:%M'),
                         endTime=newHatch['endTime'].strftime('%H:%M'),
@@ -711,13 +441,15 @@ def main():
             break
         except Exception as ex:
             logger.exception(ex)
-        if now.time() >= datetime.time(21, 0) or now.time() < datetime.time(6,0):
+        if now.time() >= datetime.time(NIGHT_TIME_START, 0) or now.time() < datetime.time(NIGHT_TIME_END,0):
             nightly_timer = (datetime.timedelta(hours=24) - (now - now.replace(hour=6, minute=0, second=0, microsecond=0))).total_seconds() % (86400)
-            logger.info("Sleeping %d secs until 6 AM", nightly_timer)
+            logger.info("Sleeping %d secs until %d AM", nightly_timer, NIGHT_TIME_END)
             time.sleep(nightly_timer)
         time.sleep(SCAN_INTERVAL)
         #Reload config settings but no need to reprep Twilio client or reload the cache.
         importConfigSettings(False)
+        importPokedex()
+        importUsers()
     
     sys.exit(0)
 
