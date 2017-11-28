@@ -44,9 +44,6 @@ POKEDEX = []
 SMS_CLIENT = None
 USERS = []
 
-#TODO Use Lat/Long or gym id to track GYMS.
-
-
 #Config File Support
 def checkForConfigs():
     logger = logging.getLogger()
@@ -177,28 +174,29 @@ def importUsers():
                 if user['Gyms']:
                     if user['Active Perks']:
                         for userGym in user['Gyms']:
-                            foundGym = False
-                            for gym in GYMS:
-                                if gym['Name'] == userGym['Name']:  #TODO Match on Gym id
-                                    foundGym = True
+                            if userGym['EggNotification'] or userGym['HatchNotification']:
+                                foundGym = False
+                                for gym in GYMS:
+                                    if gym['Latitude'] == userGym['Latitude'] and gym['Longitude'] == userGym['Longitude']:
+                                        foundGym = True
+                                        if userGym['EggNotification']:
+                                            gym['Egg Numbers'].append(user['Phone Number'])
+                                        if userGym['HatchNotification']:
+                                            gym['Hatch Numbers'].append(user['Phone Number'])
+                                        break #we found a match in GYMS we can move to the next userGym now
+                                if not foundGym:
+                                    newGym = {
+                                        'Egg Numbers': [],
+                                        'Hatch Numbers': [],
+                                        'Latitude': userGym['Latitude'],
+                                        'Longitude': userGym['Longitude'],
+                                        'Name': userGym['Name']
+                                    }
                                     if userGym['EggNotification']:
-                                        gym['Egg Numbers'].append(user['Phone Number'])
+                                        newGym['Egg Numbers'].append(user['Phone Number'])
                                     if userGym['HatchNotification']:
-                                        gym['Hatch Numbers'].append(user['Phone Number'])
-                                #TODO if we match gym id or lat long we will need to include those here instead.
-                            if not foundGym:
-                                newGym = {
-                                    'Egg Numbers': [],
-                                    'Hatch Numbers': [],
-                                    'Latitude': userGym['Latitude'],
-                                    'Longitude': userGym['Longitude'],
-                                    'Name': userGym['Name']
-                                }
-                                if userGym['EggNotification']:
-                                    newGym['Egg Numbers'].append(user['Phone Number'])
-                                if userGym['HatchNotification']:
-                                    newGym['Hatch Numbers'].append(user['Phone Number'])
-                                GYMS.append(newGym)
+                                        newGym['Hatch Numbers'].append(user['Phone Number'])
+                                    GYMS.append(newGym)
         except Exception as ex:
             logger.exception(ex)
 
@@ -270,7 +268,14 @@ def getEXGymData():
     global GYMS
     
     logger = logging.getLogger()
-    gyms = [gym for gym in getAllGyms() if gym['gymname'].strip() in [masterGym['Name'] for masterGym in GYMS]] #TODO Filter BY LAT/LONG
+    gyms = []
+    for gym in getAllGyms():
+        for masterGym in GYMS:
+            if gym['lat'] == masterGym['Latitude'] and gym['long'] == masterGym['Longitude']:
+                gyms.append(gym)
+                break #we found a masterGym match we can move to the next gym now.
+    logger.debug("GYMS: %s", GYMS)
+    logger.debug("gyms: %s", gyms)
     return gyms
 
 def getAllGyms():
@@ -295,11 +300,12 @@ def getAllGyms():
                     'endTime': datetime.datetime.strptime(raid['end'], '%Y-%m-%d %H:%M:%S'),
                     'tier': int(raid['level']),
                     'pokemon': POKEDEX[int(raid['pokemon_id'])-1] if raid['pokemon_id'] else None,
-                    'lat': raid['latitude'],
-                    'long': raid['longitude'],
+                    'lat': float(raid['latitude']),
+                    'long': float(raid['longitude']),
                     'type': 'Egg' if raid['pokemon_id'] is None else 'Pokemon'
                 })
         i += 1
+    logger.debug("gyms: %s", gyms)
     return gyms
 
 def saveCache(Hatches, Eggs):
@@ -395,6 +401,7 @@ def main():
             #Get gym data
             logger.info('Getting gym data...')
             gymData = getEXGymData()
+            logger.debug("gymData: %s", GYMS)
             
             logger.debug('Hatches:%s', Hatches)
             logger.debug('Eggs:%s', Eggs)
@@ -415,7 +422,7 @@ def main():
                         long=newEgg['long'])
                     
                     for gym in GYMS:
-                        if gym['Name'] == newEgg['gymname']:
+                        if gym['Latitude'] == newEgg['lat'] and gym['Longitude'] == newEgg['long']:
                             for number in gym['Egg Numbers']:
                                 toNumber = '+1' + str(number)
                                 if not TESTING_MODE:
@@ -426,6 +433,7 @@ def main():
                                 else:
                                     logger.info('from:%s, to: %s, body:%s', fromNumber, toNumber, body)
                             logger.info('from:%s, body:%s', fromNumber, body)
+                            break #We found a matching gym to the newEgg, we can stop looping through GYMS now.
                     #Add newEgg to Eggs
                     Eggs.append(newEgg)
                         
@@ -440,7 +448,7 @@ def main():
                         long=newHatch['long'])
                     
                     for gym in GYMS:
-                        if gym['Name'] == newHatch['gymname']:
+                        if gym['Latitude'] == newHatch['lat'] and gym['Longitude'] == newHatch['long']:
                             for number in gym['Hatch Numbers']:
                                 toNumber = '+1' + str(number)
                                 if not TESTING_MODE:
@@ -451,6 +459,7 @@ def main():
                                 else:
                                     logger.info('from:%s, to: %s, body:%s', fromNumber, toNumber, body)
                             logger.info('from:%s, body:%s', fromNumber, body)
+                            break #We found a matching gym to the newHatch, we can stop looping through GYMS now.
                     #add newHatch to Hatches
                     Hatches.append(newHatch)
             
