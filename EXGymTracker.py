@@ -26,8 +26,8 @@ LOG_LEVEL = logging.INFO
 CACHE_FILE = CurrentDir + '\\EXGymTracker.json'
 EGG_BODY = 'GYM RAID ALERT {name} {startTime}-{endTime} Tier {tier} google.com/maps/search/?api=1&query={lat},{long}'
 HATCH_BODY = 'GYM RAID ALERT {name} {startTime}-{endTime} {pokemon} google.com/maps/search/?api=1&query={lat},{long}'
-NIGHT_TIME_END = 0
-NIGHT_TIME_START = 0
+NIGHT_TIME_END = 5
+NIGHT_TIME_START = 21
 POKEDEX_FILE = CurrentDir + '\\Pokedex.json'
 RAID_URL = ''
 RAID_URL_REFERER = ''
@@ -472,7 +472,7 @@ def main():
         except Exception as ex:
             logger.exception(ex)
         if now.time() >= datetime.time(NIGHT_TIME_START, 0) or now.time() < datetime.time(NIGHT_TIME_END,0):
-            nightly_timer = (datetime.timedelta(hours=24) - (now - now.replace(hour=6, minute=0, second=0, microsecond=0))).total_seconds() % (86400)
+            nightly_timer = (datetime.timedelta(hours=24) - (now - now.replace(hour=NIGHT_TIME_END, minute=0, second=0, microsecond=0))).total_seconds() % (86400)
             logger.info("Sleeping %d secs until %d AM", nightly_timer, NIGHT_TIME_END)
             time.sleep(nightly_timer)
         time.sleep(SCAN_INTERVAL)
