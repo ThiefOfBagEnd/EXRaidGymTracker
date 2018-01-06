@@ -50,7 +50,7 @@ Temporary Items
 *.log*
 
 #Config Files for the EXGymTracker script
-*.conf
+EXGymTracker.conf
 
 #Cache JSON Files for the EXGymTracker script
 *.json
