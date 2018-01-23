@@ -180,9 +180,15 @@ def importUsers():
                                     if gym['Latitude'] == userGym['Latitude'] and gym['Longitude'] == userGym['Longitude']:
                                         foundGym = True
                                         if userGym['EggNotification']:
-                                            gym['Egg Numbers'].append(user['Phone Number'])
+                                            gym['Egg Numbers'].append({
+                                                'Number': user['Phone Number'],
+                                                'Start': user['Notifications Start'], 
+                                                'End': user['Notifications End']})
                                         if userGym['HatchNotification']:
-                                            gym['Hatch Numbers'].append(user['Phone Number'])
+                                            gym['Hatch Numbers'].append({
+                                                'Number': user['Phone Number'],
+                                                'Start': user['Notifications Start'], 
+                                                'End': user['Notifications End']})
                                         break #we found a match in GYMS we can move to the next userGym now
                                 if not foundGym:
                                     newGym = {
@@ -193,9 +199,15 @@ def importUsers():
                                         'Name': userGym['Name']
                                     }
                                     if userGym['EggNotification']:
-                                        newGym['Egg Numbers'].append(user['Phone Number'])
+                                        newGym['Egg Numbers'].append({
+                                            'Number': user['Phone Number'],
+                                            'Start': user['Notifications Start'], 
+                                            'End': user['Notifications End']})
                                     if userGym['HatchNotification']:
-                                        newGym['Hatch Numbers'].append(user['Phone Number'])
+                                        newGym['Hatch Numbers'].append({
+                                            'Number': user['Phone Number'],
+                                            'Start': user['Notifications Start'], 
+                                            'End': user['Notifications End']})
                                     GYMS.append(newGym)
         except Exception as ex:
             logger.exception(ex)
@@ -423,15 +435,16 @@ def main():
                     
                     for gym in GYMS:
                         if gym['Latitude'] == newEgg['lat'] and gym['Longitude'] == newEgg['long']:
-                            for number in gym['Egg Numbers']:
-                                toNumber = '+1' + str(number)
-                                if not TESTING_MODE:
-                                    SMS_CLIENT.messages.create(
-                                        to=toNumber,
-                                        from_=fromNumber,
-                                        body=body)
-                                else:
-                                    logger.info('from:%s, to: %s, body:%s', fromNumber, toNumber, body)
+                            for user in gym['Egg Numbers']:
+                                if now.time() >= datetime.time(user['Start'], 0) and now.time() < datetime.time(user['End'],0):
+                                    toNumber = '+1' + str(user['Number'])
+                                    if not TESTING_MODE:
+                                        SMS_CLIENT.messages.create(
+                                            to=toNumber,
+                                            from_=fromNumber,
+                                            body=body)
+                                    else:
+                                        logger.info('from:%s, to: %s, body:%s', fromNumber, toNumber, body)
                             logger.info('from:%s, body:%s', fromNumber, body)
                             break #We found a matching gym to the newEgg, we can stop looping through GYMS now.
                     #Add newEgg to Eggs
@@ -449,15 +462,16 @@ def main():
                     
                     for gym in GYMS:
                         if gym['Latitude'] == newHatch['lat'] and gym['Longitude'] == newHatch['long']:
-                            for number in gym['Hatch Numbers']:
-                                toNumber = '+1' + str(number)
-                                if not TESTING_MODE:
-                                    SMS_CLIENT.messages.create(
-                                        to=toNumber,
-                                        from_=fromNumber,
-                                        body=body)
-                                else:
-                                    logger.info('from:%s, to: %s, body:%s', fromNumber, toNumber, body)
+                            for user in gym['Hatch Numbers']:
+                                if now.time() >= datetime.time(user['Start'], 0) and now.time() < datetime.time(user['End'],0):
+                                    toNumber = '+1' + str(user['Number'])
+                                    if not TESTING_MODE:
+                                        SMS_CLIENT.messages.create(
+                                            to=toNumber,
+                                            from_=fromNumber,
+                                            body=body)
+                                    else:
+                                        logger.info('from:%s, to: %s, body:%s', fromNumber, toNumber, body)
                             logger.info('from:%s, body:%s', fromNumber, body)
                             break #We found a matching gym to the newHatch, we can stop looping through GYMS now.
                     #add newHatch to Hatches
